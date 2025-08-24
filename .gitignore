@@ -2,6 +2,14 @@
 
 # dependencies
 /node_modules
+<<<<<<< HEAD
+=======
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+>>>>>>> origin/main
 
 # next.js
 /.next/
@@ -10,18 +18,36 @@
 # production
 /build
 
+<<<<<<< HEAD
+=======
+# misc
+.DS_Store
+*.pem
+
+>>>>>>> origin/main
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+<<<<<<< HEAD
 .pnpm-debug.log*
 
 # env files
 .env*
+=======
+
+# local env files
+.env*.local
+.env
+>>>>>>> origin/main
 
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
+<<<<<<< HEAD
 next-env.d.ts
+=======
+next-env.d.ts
+>>>>>>> origin/main
