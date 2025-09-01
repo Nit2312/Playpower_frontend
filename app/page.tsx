@@ -97,21 +97,46 @@ export default function NoteTakingApp() {
     setActiveNote(newNote)
   }
 
-  const duplicateNote = (noteId: string) => {
+  const duplicateNote = async (noteId: string) => {
     const originalNote = notes.find((note) => note.id === noteId)
-    if (originalNote) {
-      const duplicatedNote: Note = {
-        ...originalNote,
-        id: Date.now().toString(),
-        title: `${originalNote.title} (Copy)`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isPinned: false,
-        isPasswordProtected: false, // Remove password protection from duplicates
+    
+    if (!originalNote) return
+
+    let contentForCopy = originalNote.content
+
+    // If protected and not currently unlocked, require password to decrypt before duplicating
+    if (originalNote.isPasswordProtected && !unlockedNotes.has(originalNote.id)) {
+      const password = window.prompt("Enter password to duplicate this protected note")
+      if (!password) return
+      try {
+        // Verify password hash if present
+        if (originalNote.password) {
+          const inputHash = await encryptionService.hashPassword(password)
+          if (inputHash !== originalNote.password) {
+            alert("Incorrect password")
+            return
+          }
+        }
+        contentForCopy = await encryptionService.decrypt(originalNote.content, password)
+      } catch (e) {
+        alert("Failed to decrypt note. Please try again.")
+        return
       }
-      setNotes((prev) => [duplicatedNote, ...prev])
-      setActiveNote(duplicatedNote)
     }
+
+    const duplicatedNote: Note = {
+      ...originalNote,
+      id: Date.now().toString(),
+      title: `${originalNote.title} (Copy)`,
+      content: contentForCopy,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isPinned: false,
+      isPasswordProtected: true, // Duplicates are unprotected by default
+      password: `${originalNote.password}`,
+    }
+    setNotes((prev) => [duplicatedNote, ...prev])
+    setActiveNote(duplicatedNote)
   }
 
   const updateNote = (updatedNote: Note) => {

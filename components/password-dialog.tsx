@@ -41,12 +41,23 @@ export function PasswordDialog({
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [correctPassword, setCorrectPassword] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (mode === "set" && password !== confirmPassword) {
+    if(password.length < 8) {
       return
+    }
+    if(!password.match(/[A-Z]/) || !password.match(/[a-z]/) || !password.match(/[0-9]/) || !password.match(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/))
+    {
+      setCorrectPassword(false)
+      return
+    }
+    
+    if (mode === "set" && password !== confirmPassword) {
+      setCorrectPassword(false)
+      return 
     }
 
     if (password.trim()) {
@@ -94,6 +105,9 @@ export function PasswordDialog({
                 disabled={isLoading}
                 autoFocus
               />
+
+
+              {!correctPassword && <p className="text-sm text-destructive">Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character</p>}
               <Button
                 type="button"
                 variant="ghost"
