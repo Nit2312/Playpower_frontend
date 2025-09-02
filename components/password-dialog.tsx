@@ -41,22 +41,39 @@ export function PasswordDialog({
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [correctPassword, setCorrectPassword] = useState(false)
+  const [validationError, setValidationError] = useState("")
+
+  const validatePassword = (pwd: string) => {
+    if (pwd.length < 8) {
+      return "Password must be at least 8 characters"
+    }
+    if (!pwd.match(/[A-Z]/)) {
+      return "Password must contain an uppercase letter"
+    }
+    if (!pwd.match(/[a-z]/)) {
+      return "Password must contain a lowercase letter"
+    }
+    if (!pwd.match(/[0-9]/)) {
+      return "Password must contain a number"
+    }
+    if (!pwd.match(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/)) {
+      return "Password must contain a special character"
+    }
+    return ""
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    setValidationError("")
 
-    if(password.length < 8) {
-      return
-    }
-    if(!password.match(/[A-Z]/) || !password.match(/[a-z]/) || !password.match(/[0-9]/) || !password.match(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/))
-    {
-      setCorrectPassword(false)
+    const passwordError = validatePassword(password)
+    if (passwordError) {
+      setValidationError(passwordError)
       return
     }
     
     if (mode === "set" && password !== confirmPassword) {
-      setCorrectPassword(false)
+      setValidationError("Passwords do not match")
       return 
     }
 
@@ -105,9 +122,9 @@ export function PasswordDialog({
                 disabled={isLoading}
                 autoFocus
               />
-
-
-              {!correctPassword && <p className="text-sm text-destructive">Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character</p>}
+              {validationError && (
+                <p className="text-sm text-destructive mt-1">{validationError}</p>
+              )}
               <Button
                 type="button"
                 variant="ghost"
