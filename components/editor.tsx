@@ -36,6 +36,14 @@ export function Editor({
 
   const handleContentChange = useCallback(() => {
     if (contentRef.current) {
+      // Clean up empty list items that might be created by contentEditable
+      const listItems = contentRef.current.querySelectorAll('li');
+      listItems.forEach(li => {
+        if (!li.textContent?.trim() && li.parentNode) {
+          li.parentNode.removeChild(li);
+        }
+      });
+      
       const content = contentRef.current.innerHTML;
       onUpdateNote({
         ...note,
@@ -106,6 +114,69 @@ export function Editor({
       }
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (locked) {
+        e.preventDefault();
+        onRequireUnlock?.();
+        return;
+      }
+
+      const selection = window.getSelection();
+      if (!selection?.rangeCount) return;
+      
+      const range = selection.getRangeAt(0);
+      const node = range.startContainer;
+      const parentElement = node.nodeType === Node.TEXT_NODE 
+        ? (node.parentElement as HTMLElement) 
+        : (node as HTMLElement);
+
+      // Handle Enter key for lists
+      if (e.key === 'Enter') {
+        // If we're in a list item
+        if (parentElement.tagName === 'LI') {
+          e.preventDefault();
+          
+          // If at start or end of empty list item, exit list
+          if (
+            (!node.textContent || node.textContent === '') && 
+            (!node.nextSibling || (node.nextSibling as HTMLElement).tagName !== 'LI')
+          ) {
+            document.execCommand('insertLineBreak');
+            document.execCommand('outdent');
+            return;
+          }
+          
+          // Otherwise create new list item
+          document.execCommand('insertUnorderedList');
+        }
+        // If at start of line with '- ' or '* ' or '1. ', create a list
+        else if (node.nodeType === Node.TEXT_NODE && range.startOffset <= 2) {
+          const text = node.textContent || '';
+          const lineStart = text.lastIndexOf('\n', range.startOffset - 1) + 1;
+          const lineText = text.substring(lineStart, range.startOffset).trim();
+          
+          if (['-', '*', '1.'].includes(lineText)) {
+            e.preventDefault();
+            // Remove the bullet/number
+            range.setStart(node, lineStart);
+            range.setEnd(node, range.startOffset);
+            range.deleteContents();
+            // Create list
+            document.execCommand('insertUnorderedList');
+          }
+        }
+      }
+    };
+
+    const contentEl = contentRef.current;
+    contentEl?.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      contentEl?.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [locked, onRequireUnlock]);
 
   const handlePaste = (e: React.ClipboardEvent) => {
     if (locked) {

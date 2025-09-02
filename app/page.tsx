@@ -132,8 +132,8 @@ export default function NoteTakingApp() {
       createdAt: new Date(),
       updatedAt: new Date(),
       isPinned: false,
-      isPasswordProtected: true, // Duplicates are unprotected by default
-      password: `${originalNote.password}`,
+      isPasswordProtected: originalNote.isPasswordProtected, // Inherit protection status from original
+      password: originalNote.isPasswordProtected ? originalNote.password : undefined,
     }
     setNotes((prev) => [duplicatedNote, ...prev])
     setActiveNote(duplicatedNote)

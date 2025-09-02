@@ -18,19 +18,23 @@ interface AIPanelProps {
 
 export function AIPanel({ note, onUpdateNote, isVisible, onClose }: AIPanelProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const [summary, setSummary] = useState<string>("")
-  const [suggestedTags, setSuggestedTags] = useState<string[]>([])
+  const [summary, setSummary] = useState<string>("Loading summary...")
+  const [suggestedTags, setSuggestedTags] = useState<string[]>(["loading"])
   const [glossaryTerms, setGlossaryTerms] = useState<GlossaryTerm[]>([])
   const [grammarErrors, setGrammarErrors] = useState<GrammarError[]>([])
 
   useEffect(() => {
-    if (isVisible && note.content) {
+    console.log("AIPanel useEffect triggered:", { isVisible, noteId: note.id, contentLength: note.content.length })
+    if (isVisible) {
+      // Generate insights even if content is empty to show fallback content
       generateAIInsights()
     }
   }, [isVisible, note.id])
 
   const generateAIInsights = async () => {
     setIsLoading(true)
+    console.log("Starting AI insights generation for note:", note.title, "Content length:", note.content.length)
+    
     try {
       const [summaryResult, tagsResult, glossaryResult, grammarResult] = await Promise.all([
         aiService.summarizeNote(note.content),
@@ -38,6 +42,8 @@ export function AIPanel({ note, onUpdateNote, isVisible, onClose }: AIPanelProps
         aiService.detectGlossaryTerms(note.content),
         aiService.checkGrammar(note.content),
       ])
+
+      console.log("AI Results:", { summaryResult, tagsResult, glossaryResult, grammarResult })
 
       setSummary(summaryResult)
       setSuggestedTags(tagsResult)
@@ -50,8 +56,15 @@ export function AIPanel({ note, onUpdateNote, isVisible, onClose }: AIPanelProps
     }
   }
 
-  const addTag = (tag: string) => {
-    if (!note.tags.includes(tag)) {
+  const toggleTag = (tag: string) => {
+    if (note.tags.includes(tag)) {
+      // Remove tag if already selected
+      onUpdateNote({
+        ...note,
+        tags: note.tags.filter(t => t !== tag),
+      })
+    } else {
+      // Add tag if not selected
       onUpdateNote({
         ...note,
         tags: [...note.tags, tag],
@@ -66,7 +79,14 @@ export function AIPanel({ note, onUpdateNote, isVisible, onClose }: AIPanelProps
     })
   }
 
-  if (!isVisible) return null
+  
+
+  if (!isVisible) {
+    console.log("AIPanel not visible")
+    return null
+  }
+  
+  console.log("AIPanel rendering with:", { summary, suggestedTags: suggestedTags.length, glossaryTerms: glossaryTerms.length, grammarErrors: grammarErrors.length, isLoading })
 
   return (
     <div className="w-full sm:w-80 flex-shrink-0 bg-card border-l border-border flex flex-col h-full overflow-hidden ">
@@ -98,10 +118,12 @@ export function AIPanel({ note, onUpdateNote, isVisible, onClose }: AIPanelProps
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-sm text-muted-foreground mb-3">{summary}</p>
-                <Button size="sm" variant="outline" onClick={applySummary}>
-                  Save Summary
-                </Button>
+                <p className="text-sm text-muted-foreground mb-3">{summary || "No summary available"}</p>
+                {summary && summary !== "Loading summary..." && (
+                  <Button size="sm" variant="outline" onClick={applySummary}>
+                    Save Summary
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
@@ -115,71 +137,83 @@ export function AIPanel({ note, onUpdateNote, isVisible, onClose }: AIPanelProps
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="flex flex-wrap gap-2">
-                  {suggestedTags.map((tag, index) => (
+                  {suggestedTags.length > 0 ? suggestedTags.filter(tag => tag !== "loading").map((tag, index) => (
                     <Badge
                       key={index}
                       variant={note.tags.includes(tag) ? "default" : "secondary"}
                       className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
-                      onClick={() => addTag(tag)}
+                      onClick={() => toggleTag(tag)}
                     >
                       {tag}
-                      {!note.tags.includes(tag) && <span className="ml-1">+</span>}
+                      {note.tags.includes(tag) ? (
+                        <span className="ml-1">×</span>
+                      ) : (
+                        <span className="ml-1">+</span>
+                      )}
                     </Badge>
-                  ))}
+                  )) : (
+                    <span className="text-sm text-muted-foreground">No tags suggested</span>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
             {/* Glossary Terms */}
-            {glossaryTerms.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Lightbulb className="w-4 h-4" />
-                    Key Terms
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-3">
-                  {glossaryTerms.map((term, index) => (
-                    <div key={index} className="space-y-1">
-                      <div className="font-medium text-sm">{term.term}</div>
-                      <div className="text-xs text-muted-foreground">{term.definition}</div>
-                      {index < glossaryTerms.length - 1 && <Separator />}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4" />
+                  Key Terms
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-3">
+                {glossaryTerms.length > 0 ? glossaryTerms.map((term, index) => (
+                  <div key={index} className="space-y-1">
+                    <div 
+                      className="font-medium text-sm cursor-pointer hover:underline hover:text-primary"
+                    >
+                      {term.term}
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+                    <div className="text-xs text-muted-foreground">
+                      {term.definition}
+                    </div>
+                    {index < glossaryTerms.length - 1 && <Separator />}
+                  </div>
+                )) : (
+                  <span className="text-sm text-muted-foreground">No key terms detected</span>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Grammar Errors */}
-            {grammarErrors.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4" />
-                    Grammar Check
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-3">
-                  {grammarErrors.map((error, index) => (
-                    <div key={index} className="space-y-1">
-                      <div className="font-medium text-sm text-destructive">"{error.text}"</div>
-                      <div className="text-xs text-muted-foreground">{error.message}</div>
-                      {error.suggestions.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {error.suggestions.map((suggestion, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">
-                              {suggestion}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                      {index < grammarErrors.length - 1 && <Separator />}
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Grammar Check
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-3">
+                {grammarErrors.length > 0 ? grammarErrors.map((error, index) => (
+                  <div key={index} className="space-y-1">
+                    <div className="font-medium text-sm text-destructive">"{error.text}"</div>
+                    <div className="text-xs text-muted-foreground">{error.message}</div>
+                    {error.suggestions.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {error.suggestions.map((suggestion, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">
+                            {suggestion}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    {index < grammarErrors.length - 1 && <Separator />}
+                  </div>
+                )) : (
+                  <span className="text-sm text-muted-foreground">No grammar issues detected</span>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Refresh Button */}
             <Button

@@ -86,7 +86,7 @@ export function Sidebar({
   };
 
   return (
-    <div className="w-full sm:w-80 flex-shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col overflow-hidden">
+    <div className="w-full sm:w-80 flex-shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center justify-between mb-4">

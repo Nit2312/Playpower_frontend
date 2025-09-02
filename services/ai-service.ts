@@ -1,5 +1,8 @@
-// AI Service for note-taking app
-// Modular service for AI features: glossary, summarization, tags, grammar
+/**
+ * AI Service for note-taking app
+ * Modular service for AI features: glossary, summarization, tags, grammar
+ * Provides intelligent content analysis with caching and fallback mechanisms
+ */
 
 export interface GlossaryTerm {
   term: string
@@ -29,7 +32,12 @@ class AIService {
     this.config = config
   }
 
-  // Translate content to a target language
+  /**
+   * Translates content to a target language using AI API
+   * @param content - The text content to translate
+   * @param targetLang - Target language code (e.g., 'es', 'fr', 'de')
+   * @returns Promise<string> - Translated content
+   */
   async translate(content: string, targetLang: string): Promise<string> {
     const cacheKey = `translate_${targetLang}_${content.slice(0, 80)}`
     if (this.cache.has(cacheKey)) return this.cache.get(cacheKey)
@@ -50,6 +58,11 @@ class AIService {
     }
   }
 
+  /**
+   * Makes API calls to the AI service endpoint
+   * @param payload - Request payload containing action and parameters
+   * @returns Promise<T | null> - API response data or null if failed
+   */
   private async callAPI<T>(payload: any): Promise<T | null> {
     try {
       const res = await fetch("/api/ai", {
@@ -67,7 +80,11 @@ class AIService {
     }
   }
 
-  // Auto glossary highlighting - detect keywords and provide definitions
+  /**
+   * Detects technical terms in content and provides definitions
+   * @param content - The text content to analyze
+   * @returns Promise<GlossaryTerm[]> - Array of detected terms with definitions
+   */
   async detectGlossaryTerms(content: string): Promise<GlossaryTerm[]> {
     const cacheKey = `glossary_${content.slice(0, 100)}`
     if (this.cache.has(cacheKey)) {
@@ -94,7 +111,11 @@ class AIService {
     }
   }
 
-  // Summarize note content into 1-2 lines
+  /**
+   * Generates a concise summary of note content
+   * @param content - The note content to summarize
+   * @returns Promise<string> - 1-2 line summary of the content
+   */
   async summarizeNote(content: string): Promise<string> {
     const cacheKey = `summary_${content.slice(0, 100)}`
     if (this.cache.has(cacheKey)) {
@@ -118,7 +139,12 @@ class AIService {
     }
   }
 
-  // Suggest 3-5 tags for a note
+  /**
+   * Suggests relevant tags for a note based on title and content
+   * @param title - The note title
+   * @param content - The note content
+   * @returns Promise<string[]> - Array of 3-5 suggested tags
+   */
   async suggestTags(title: string, content: string): Promise<string[]> {
     const cacheKey = `tags_${title}_${content.slice(0, 50)}`
     if (this.cache.has(cacheKey)) {
@@ -142,7 +168,11 @@ class AIService {
     }
   }
 
-  // Basic grammar checker - detect errors and provide suggestions
+  /**
+   * Checks content for grammar errors and provides suggestions
+   * @param content - The text content to check for grammar errors
+   * @returns Promise<GrammarError[]> - Array of detected grammar errors with suggestions
+   */
   async checkGrammar(content: string): Promise<GrammarError[]> {
     const cacheKey = `grammar_${content.slice(0, 100)}`
     if (this.cache.has(cacheKey)) {
@@ -154,7 +184,8 @@ class AIService {
       const api = await this.callAPI<{ grammar: Array<{ text: string; message: string; suggestions: string[] }> }>(
         { action: "grammar", content },
       )
-      if (api?.grammar) {
+      // Check if api.grammar exists and is an array before mapping
+      if (api?.grammar && Array.isArray(api.grammar)) {
         const errors = api.grammar.map((g, idx) => ({ ...g, startIndex: idx, endIndex: idx }))
         this.cache.set(cacheKey, errors)
         return errors
@@ -169,7 +200,12 @@ class AIService {
     }
   }
 
-  // Mock implementations (replace with real AI API calls)
+  /**
+   * Extracts technical terms from content using pattern matching
+   * Fallback implementation when AI API is unavailable
+   * @param content - The text content to analyze
+   * @returns GlossaryTerm[] - Array of detected technical terms
+   */
   private extractTechnicalTerms(content: string): GlossaryTerm[] {
     const technicalTerms = [
       {
@@ -215,6 +251,11 @@ class AIService {
     return terms.slice(0, 5) // Limit to 5 terms
   }
 
+  /**
+   * Generates a mock summary when AI API is unavailable
+   * @param content - The content to summarize
+   * @returns string - Generated summary based on content analysis
+   */
   private generateMockSummary(content: string): string {
     const plainText = content.replace(/<[^>]*>/g, "").trim()
     if (plainText.length === 0) return "Empty note"
@@ -237,6 +278,13 @@ class AIService {
     }
   }
 
+  /**
+   * Generates mock tags based on keyword analysis
+   * Fallback implementation when AI API is unavailable
+   * @param title - The note title
+   * @param content - The note content
+   * @returns string[] - Array of suggested tags
+   */
   private generateMockTags(title: string, content: string): string[] {
     const allText = (title + " " + content.replace(/<[^>]*>/g, "")).toLowerCase()
     const commonTags = [
@@ -277,6 +325,12 @@ class AIService {
     return suggestedTags.slice(0, 5)
   }
 
+  /**
+   * Detects basic grammar errors using pattern matching
+   * Fallback implementation when AI API is unavailable
+   * @param content - The text content to check
+   * @returns GrammarError[] - Array of detected grammar errors
+   */
   private detectMockGrammarErrors(content: string): GrammarError[] {
     const plainText = content.replace(/<[^>]*>/g, "")
     const errors: GrammarError[] = []

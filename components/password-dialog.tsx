@@ -73,7 +73,7 @@ export function PasswordDialog({
     onClose()
   }
 
-  const isPasswordMismatch = mode === "set" && confirmPassword && password !== confirmPassword
+  const isPasswordMismatch = mode === "set" && confirmPassword.length > 0 && password !== confirmPassword
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -157,7 +157,7 @@ export function PasswordDialog({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !password.trim() || (mode === "set" && (!confirmPassword || isPasswordMismatch))}
+              disabled={isLoading || password.trim() === "" || (mode === "set" && (confirmPassword.trim() === "" || isPasswordMismatch))}
             >
               {isLoading ? "Processing..." : mode === "set" ? "Set Password" : "Unlock"}
             </Button>
