@@ -28,22 +28,36 @@ export async function POST(req: Request) {
 
     switch (body.action) {
       case "summarize": {
-        const prompt = `Summarize the following note in 1-2 sentences, plain text only.\n\nNote:\n${stripHtml(
-          body.content,
-        )}`
+        const prompt = `Create a creative, engaging summary of this note that captures its essence and main ideas. The summary should be:
+- Maximum 500 characters
+- Creative and engaging, not just a dry list
+- Preserve the original tone and key insights
+- Use vivid language when appropriate
+- Focus on the most important concepts and takeaways
+- Make it interesting to read
+
+Note content:
+${stripHtml(body.content)}`
+        
         const completion = await groq.chat.completions.create({
           model,
           messages: [
-            { role: "system", content: "You are a concise assistant for a note app." },
+            { role: "system", content: "You are a creative writing assistant who creates engaging, meaningful summaries that capture the essence and key insights of notes. You write in an engaging, creative style while staying informative." },
             { role: "user", content: prompt },
           ],
-          temperature: 0.3,
-          max_tokens: 180,
+          temperature: 0.7,
+          max_tokens: 200,
         }).catch((err: any) => {
           console.error("groq summarize error", err?.response ?? err)
           throw new Error(err?.response?.data?.error ?? "Groq summarize failed")
         })
-        const text = completion.choices?.[0]?.message?.content?.trim() || ""
+        
+        let text = completion.choices?.[0]?.message?.content?.trim() || ""
+        // Ensure it doesn't exceed 500 characters
+        if (text.length > 500) {
+          text = text.slice(0, 500).trim()
+        }
+        
         return json({ summary: text })
       }
       case "tags": {

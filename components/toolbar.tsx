@@ -186,10 +186,10 @@ export function Toolbar({ activeNote, onUpdateNote, onToggleAIPanel, showAIPanel
           </Button>
         </div>
 
-        <Separator orientation="vertical" className="h-6" />
+        
 
         {/* Lists and Formatting */}
-        <div className="flex items-center gap-1">
+        {/* <div className="flex items-center gap-1">
           <Button
             size="sm"
             variant="ghost"
@@ -216,7 +216,7 @@ export function Toolbar({ activeNote, onUpdateNote, onToggleAIPanel, showAIPanel
           <Button size="sm" variant="ghost" onClick={insertCodeBlock} className="hover:bg-accent" title="Code Block" disabled={disabled}>
             <Code className="w-4 h-4" />
           </Button>
-        </div>
+        </div> */}
 
         <Separator orientation="vertical" className="h-6" />
 

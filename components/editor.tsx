@@ -3,6 +3,8 @@
 import type React from "react";
 import { useRef, useEffect, useState, useCallback } from "react";
 import type { Note } from "@/types/note";
+import { aiService } from "@/services/ai-service";
+import { countWords } from "@/lib/utils";
 
 interface EditorProps {
   note: Note;
@@ -21,16 +23,20 @@ export function Editor({
   const contentRef = useRef<HTMLDivElement>(null);
   // const [titleError, setTitleError] = useState<string | null>(null);
   const [isContentFocused, setIsContentFocused] = useState(false);
+  const [characterCount, setCharacterCount] = useState(0);
 
   useEffect(() => {
     if (!contentRef.current) return;
     if (locked) {
       // Hide any encrypted/raw content when locked
       contentRef.current.innerHTML = "";
+      setCharacterCount(0);
       return;
     }
     if (note.content !== contentRef.current.innerHTML) {
       contentRef.current.innerHTML = note.content;
+      const textContent = contentRef.current.textContent || "";
+      setCharacterCount(textContent.length);
     }
   }, [note.id, locked]); // Update when note changes or lock state changes
 
@@ -43,8 +49,11 @@ export function Editor({
           li.parentNode.removeChild(li);
         }
       });
-      
+
       const content = contentRef.current.innerHTML;
+      const textContent = contentRef.current.textContent || "";
+      setCharacterCount(textContent.length);
+      
       onUpdateNote({
         ...note,
         content: content,
@@ -214,9 +223,35 @@ export function Editor({
     setIsContentFocused(true);
   };
 
-  const handleContentBlur = () => {
+  const handleContentBlur = async () => {
     setIsContentFocused(false);
+    if (locked) return;
+    // Persist current edits first
     handleContentChange();
+
+    try {
+      const currentHtml = contentRef.current?.innerHTML || "";
+      const hasText = (contentRef.current?.textContent || "").trim().length > 0;
+      if (!hasText) return;
+
+      // Get concise summary from Groq (server enforces <=100 chars; we also trim defensively)
+      const summary = await aiService.summarizeNote(currentHtml);
+      const shortSummary = (summary || "").trim();
+
+      // Replace editor content with plain text summary
+      if (contentRef.current) {
+        contentRef.current.textContent = shortSummary;
+      }
+
+      // Update note state with summary
+      onUpdateNote({
+        ...note,
+        content: shortSummary,
+      });
+    } catch (e) {
+      // Fail silently; keep original content on error
+      console.warn("Summarization on blur failed", e);
+    }
   };
 
   return (
@@ -255,6 +290,11 @@ export function Editor({
           suppressContentEditableWarning={true}
           data-placeholder="Start writing your note..."
         />
+        
+        {/* Character Counter */}
+        <div className="absolute bottom-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+          {characterCount} characters
+        </div>
 
         {locked && (
           <button

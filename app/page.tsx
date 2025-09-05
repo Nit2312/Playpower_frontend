@@ -104,23 +104,47 @@ export default function NoteTakingApp() {
 
     let contentForCopy = originalNote.content
 
-    // If protected and not currently unlocked, require password to decrypt before duplicating
-    if (originalNote.isPasswordProtected && !unlockedNotes.has(originalNote.id)) {
-      const password = window.prompt("Enter password to duplicate this protected note")
-      if (!password) return
-      try {
-        // Verify password hash if present
-        if (originalNote.password) {
-          const inputHash = await encryptionService.hashPassword(password)
-          if (inputHash !== originalNote.password) {
-            alert("Incorrect password")
+    // If protected, ensure we copy PLAINTEXT, not ciphertext
+    if (originalNote.isPasswordProtected) {
+      if (unlockedNotes.has(originalNote.id)) {
+        // If it is the active note and unlocked, we have plaintext in activeNote
+        if (activeNote?.id === originalNote.id) {
+          contentForCopy = activeNote.content
+        } else {
+          // Unlocked but not active: ask for password to safely decrypt
+          const password = window.prompt("Enter password to duplicate this protected note")
+          if (!password) return
+          try {
+            if (originalNote.password) {
+              const inputHash = await encryptionService.hashPassword(password)
+              if (inputHash !== originalNote.password) {
+                alert("Incorrect password")
+                return
+              }
+            }
+            contentForCopy = await encryptionService.decrypt(originalNote.content, password)
+          } catch (e) {
+            alert("Failed to decrypt note. Please try again.")
             return
           }
         }
-        contentForCopy = await encryptionService.decrypt(originalNote.content, password)
-      } catch (e) {
-        alert("Failed to decrypt note. Please try again.")
-        return
+      } else {
+        // Locked: require password to decrypt before duplicating
+        const password = window.prompt("Enter password to duplicate this protected note")
+        if (!password) return
+        try {
+          if (originalNote.password) {
+            const inputHash = await encryptionService.hashPassword(password)
+            if (inputHash !== originalNote.password) {
+              alert("Incorrect password")
+              return
+            }
+          }
+          contentForCopy = await encryptionService.decrypt(originalNote.content, password)
+        } catch (e) {
+          alert("Failed to decrypt note. Please try again.")
+          return
+        }
       }
     }
 
@@ -132,8 +156,10 @@ export default function NoteTakingApp() {
       createdAt: new Date(),
       updatedAt: new Date(),
       isPinned: false,
-      isPasswordProtected: originalNote.isPasswordProtected, // Inherit protection status from original
-      password: originalNote.isPasswordProtected ? originalNote.password : undefined,
+      // Save copies as UNPROTECTED to avoid mismatches between plaintext content and protected flag
+      // Users can re-enable protection on the copy explicitly
+      isPasswordProtected: false,
+      password: undefined,
     }
     setNotes((prev) => [duplicatedNote, ...prev])
     setActiveNote(duplicatedNote)
@@ -258,17 +284,49 @@ export default function NoteTakingApp() {
         // Verify password and decrypt content
         if (!note.password) throw new Error("No password set for this note")
 
+        // Debug: log the password used to unlock
+        try {
+          console.log("Unlock password:", password)
+        } catch {}
+
         const inputPasswordHash = await encryptionService.hashPassword(password)
         if (inputPasswordHash !== note.password) {
           throw new Error("Incorrect password")
         }
 
-        const decryptedContent = await encryptionService.decrypt(note.content, password)
-        setUnlockedNotes((prev) => new Set([...prev, passwordDialog.noteId!]))
-        setActiveNote({
-          ...note,
-          content: decryptedContent,
-        })
+        try {
+          const decryptedContent = await encryptionService.decrypt(note.content, password)
+          setUnlockedNotes((prev) => new Set([...prev, passwordDialog.noteId!]))
+          setActiveNote({
+            ...note,
+            content: decryptedContent,
+          })
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          // Auto-repair legacy/bad state where protected flag is set but content is plaintext
+          if (msg.includes("too small")) {
+            // Re-encrypt current plaintext content and keep the note unlocked
+            const repairedEncrypted = await encryptionService.encrypt(note.content, password)
+            setNotes((prev) =>
+              prev.map((n) =>
+                n.id === note.id
+                  ? {
+                      ...n,
+                      content: repairedEncrypted,
+                    }
+                  : n,
+              ),
+            )
+            setUnlockedNotes((prev) => new Set([...prev, passwordDialog.noteId!]))
+            setActiveNote({
+              ...note,
+              // Show the existing plaintext content to the user
+              content: note.content,
+            })
+          } else {
+            throw err
+          }
+        }
       }
 
       setPasswordDialog((prev) => ({ ...prev, isOpen: false }))

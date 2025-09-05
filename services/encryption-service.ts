@@ -47,9 +47,15 @@ export class EncryptionService {
       },
       keyMaterial,
       { name: "AES-GCM", length: 256 },
-      false,
+      true, // make extractable for debugging/logging purposes
       ["encrypt", "decrypt"],
     )
+  }
+
+  // Export a CryptoKey to base64 (raw) for debugging/inspection
+  private async exportKeyBase64(key: CryptoKey): Promise<string> {
+    const raw = await crypto.subtle.exportKey("raw", key)
+    return this.toBase64(new Uint8Array(raw))
   }
 
   // Encrypt content with password
@@ -81,18 +87,42 @@ export class EncryptionService {
       // Convert from base64
       const combined = this.fromBase64(encryptedContent)
 
+      // Validate minimum length: salt(16) + iv(12) + at least 1 byte ciphertext
+      if (!combined || combined.length < 29) {
+        throw new Error("The provided data is too small")
+      }
+
       // Extract salt, iv, and encrypted data
       const salt = combined.slice(0, 16)
       const iv = combined.slice(16, 28)
       const encrypted = combined.slice(28)
 
       const key = await this.deriveKey(password, salt)
-
       const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, encrypted)
+      const plaintext = this.decoder.decode(decrypted)
 
-      return this.decoder.decode(decrypted)
+      // Debug logging: print password, plaintext, and the derived key (base64), plus salt/iv
+      try {
+        const keyB64 = await this.exportKeyBase64(key)
+        const saltB64 = this.toBase64(salt)
+        const ivB64 = this.toBase64(iv)
+        console.log("Password used:", password)
+        console.log("Decrypted content:", plaintext)
+        console.log("Key (raw, base64):", keyB64)
+        console.log("Salt (base64):", saltB64)
+        console.log("IV (base64):", ivB64)
+      } catch (e) {
+        console.warn("Debug export of key failed:", e)
+      }
+
+      return plaintext
+      
     } catch (error) {
       console.error("Decryption failed:", error)
+      // Preserve specific small-data error for clearer debugging; otherwise generic error
+      if (error instanceof Error && error.message.includes("too small")) {
+        throw error
+      }
       throw new Error("Invalid password or corrupted data")
     }
   }

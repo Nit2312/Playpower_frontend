@@ -79,7 +79,16 @@ export function Sidebar({
   };
 
   const getDisplayContent = (note: Note) => {
-    if (note.isPasswordProtected && !unlockedNotes.has(note.id)) {
+    if (note.isPasswordProtected) {
+      // If locked, always show placeholder
+      if (!unlockedNotes.has(note.id)) {
+        return "🔒 Password protected content";
+      }
+      // If unlocked: only show plaintext for the active note (which holds decrypted content)
+      if (activeNote && activeNote.id === note.id) {
+        return truncateContent(activeNote.content);
+      }
+      // For other unlocked notes (not active), avoid showing stored ciphertext
       return "🔒 Password protected content";
     }
     return truncateContent(note.content);
