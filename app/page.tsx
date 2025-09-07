@@ -503,13 +503,33 @@ export default function NoteTakingApp() {
         )}
       </div>
       {activeNote && !isActiveLocked && (
-        <div className="sm:block w-full sm:w-auto">
+        <div className="hidden sm:block w-full sm:w-auto">
           <AIPanel
             note={activeNote}
             onUpdateNote={updateNote}
             isVisible={showAIPanel}
             onClose={() => setShowAIPanel(false)}
           />
+        </div>
+      )}
+
+      {/* Mobile AI Panel Drawer */}
+      {activeNote && !isActiveLocked && showAIPanel && (
+        <div
+          className="sm:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]"
+          onClick={() => setShowAIPanel(false)}
+        >
+          <div
+            className="absolute right-0 top-0 bottom-0 w-[85vw] max-w-[22rem] shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <AIPanel
+              note={activeNote}
+              onUpdateNote={updateNote}
+              isVisible={true}
+              onClose={() => setShowAIPanel(false)}
+            />
+          </div>
         </div>
       )}
 
